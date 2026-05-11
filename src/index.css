@@ -1,0 +1,112 @@
+:root {
+  --primary-color: #0F172A;
+  --secondary-color: #10B981;
+  --tertiary-color: #3B82F6;
+  --surface-ground: #F8FAFC;
+  --sidebar-bg: #FFFFFF;
+  --text-color: #1E293B;
+  --text-secondary: #64748B;
+  --border-color: #E2E8F0;
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+  background-color: var(--surface-ground);
+  color: var(--text-color);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+}
+
+/* Premium Card Style */
+.premium-card {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  transform: translateY(-2px);
+}
+
+/* PrimeReact Overrides */
+.p-datatable .p-datatable-thead > tr > th {
+  background-color: #F8FAFC;
+  color: #475569;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.p-button {
+  border-radius: 10px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+/* Fix for PrimeReact Password component full width */
+.p-password,
+.p-password .p-inputtext,
+.p-password-input,
+.p-password input {
+  width: 100% !important;
+  display: block !important;
+}
+
+.p-inputtext {
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  transition: all 0.2s;
+}
+
+.p-inputtext:focus {
+  border-color: var(--tertiary-color);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* TabView Modern Styling */
+.custom-tabview .p-tabview-nav {
+  background: transparent !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  gap: 2rem;
+}
+
+.custom-tabview .p-tabview-nav li .p-tabview-nav-link {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  color: #64748B !important;
+  font-weight: 600 !important;
+  padding: 1rem 0.5rem !important;
+  transition: all 0.3s !important;
+  box-shadow: none !important;
+}
+
+.custom-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  border-color: #0F172A !important;
+  color: #0F172A !important;
+}
+
+/* Map Tooltip Styling */
+.leaflet-tooltip.premium-tooltip {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.leaflet-tooltip-top.premium-tooltip::before {
+    border-top-color: white;
+}
+
