@@ -8,6 +8,7 @@ import { Password } from 'primereact/password';
 import { Avatar } from 'primereact/avatar';
 import { Toast } from 'primereact/toast';
 import { UserService } from '../../services/user.service';
+import ImageCropper from '../../components/common/ImageCropper';
 
 const UsersPage: React.FC = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -22,6 +23,8 @@ const UsersPage: React.FC = () => {
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imageError, setImageError] = useState<string | null>(null);
+    const [cropSrc, setCropSrc] = useState<string | null>(null);
+    const [showCropDialog, setShowCropDialog] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const toast = useRef<Toast>(null);
@@ -55,13 +58,28 @@ const UsersPage: React.FC = () => {
                 return;
             }
             setImageError(null);
-            setImageFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
-                setPreviewImage(reader.result as string);
+                setCropSrc(reader.result as string);
+                setShowCropDialog(true);
             };
             reader.readAsDataURL(file);
         }
+    };
+
+    const handleCropConfirm = async (croppedBlob: Blob) => {
+        const croppedFile = new File([croppedBlob], 'profile.jpg', { type: 'image/jpeg' });
+        setImageFile(croppedFile);
+        setPreviewImage(URL.createObjectURL(croppedBlob));
+        setShowCropDialog(false);
+        setCropSrc(null);
+    };
+
+    const handleCropCancel = () => {
+        setShowCropDialog(false);
+        setCropSrc(null);
+        setImageFile(null);
+        setPreviewImage(null);
     };
 
     const openNew = () => {
@@ -205,6 +223,16 @@ const UsersPage: React.FC = () => {
                     )} style={{ width: '100px' }} />
                 </DataTable>
             </div>
+
+            {cropSrc && (
+                <ImageCropper
+                    imageSrc={cropSrc}
+                    open={showCropDialog}
+                    onCancel={handleCropCancel}
+                    onConfirm={handleCropConfirm}
+                    aspect={1}
+                />
+            )}
 
             <Dialog visible={userDialog} style={{ width: '500px' }} header={user.id ? "Edit SuperAdmin" : "Register New SuperAdmin"} modal className="p-fluid" footer={userDialogFooter} onHide={hideDialog}>
                 <div className="flex flex-column gap-4">

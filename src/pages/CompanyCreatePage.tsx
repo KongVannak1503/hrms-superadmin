@@ -6,6 +6,7 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { CompanyService } from '../services/company.service';
 import { Password } from 'primereact/password';
+import ImageCropper from '../components/common/ImageCropper';
 
 const CompanyCreatePage: React.FC = () => {
     const navigate = useNavigate();
@@ -23,10 +24,12 @@ const CompanyCreatePage: React.FC = () => {
     
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    const [previewImage, setPreviewImage] = useState<string | null>(null);
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imageError, setImageError] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [showCropDialog, setShowCropDialog] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -38,13 +41,28 @@ const CompanyCreatePage: React.FC = () => {
                 return;
             }
             setImageError(null);
-            setImageFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
-                setPreviewImage(reader.result as string);
+                setCropSrc(reader.result as string);
+                setShowCropDialog(true);
             };
             reader.readAsDataURL(file);
         }
+    };
+
+    const handleCropConfirm = async (croppedBlob: Blob) => {
+        const croppedFile = new File([croppedBlob], 'logo.jpg', { type: 'image/jpeg' });
+        setImageFile(croppedFile);
+        setPreviewImage(URL.createObjectURL(croppedBlob));
+        setShowCropDialog(false);
+        setCropSrc(null);
+    };
+
+    const handleCropCancel = () => {
+        setShowCropDialog(false);
+        setCropSrc(null);
+        setImageFile(null);
+        setPreviewImage(null);
     };
 
     const handleSave = async () => {
@@ -107,6 +125,16 @@ const CompanyCreatePage: React.FC = () => {
                     <Button label="Create Tenant" icon="pi pi-save" onClick={handleSave} loading={isSubmitting} className="border-round-lg shadow-1 border-none" style={{ backgroundColor: '#1E293B', color: '#ffffff' }} />
                 </div>
             </div>
+
+            {cropSrc && (
+                <ImageCropper
+                    imageSrc={cropSrc}
+                    open={showCropDialog}
+                    onCancel={handleCropCancel}
+                    onConfirm={handleCropConfirm}
+                    aspect={1}
+                />
+            )}
 
             <div className="grid">
                 {/* General Info Card */}
