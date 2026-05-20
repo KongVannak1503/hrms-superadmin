@@ -73,7 +73,7 @@ const CompanyCreatePage: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            const response = await CompanyService.create({
+            const newCompany = await CompanyService.create({
                 name,
                 website,
                 employee_id_prefix: employeeIdPrefix,
@@ -82,8 +82,6 @@ const CompanyCreatePage: React.FC = () => {
                 admin_email: adminEmail,
                 admin_password: adminPassword
             });
-            
-            const newCompany = response.data;
             if (imageFile && newCompany?.id) {
                 try {
                     await CompanyService.uploadLogo(newCompany.id, imageFile);

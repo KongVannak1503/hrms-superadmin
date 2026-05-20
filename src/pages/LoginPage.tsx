@@ -19,7 +19,7 @@ const LoginPage: React.FC = () => {
         setLoading(true);
         try {
             const data = await AuthService.login({ email, password });
-            setUser(data.user);
+            setUser(data.user ?? data);
             navigate('/');
         } catch (error) {
             console.error('Login failed', error);

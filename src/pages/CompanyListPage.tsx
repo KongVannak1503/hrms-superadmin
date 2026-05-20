@@ -64,7 +64,7 @@ const CompanyListPage: React.FC = () => {
         try {
             const params = search ? { search } : {};
             const data = await CompanyService.getAll(params);
-            setCompanies(data.data || data || []);
+            setCompanies(data || []);
         } catch (error) {
             console.error('Failed to load companies', error);
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to load companies' });

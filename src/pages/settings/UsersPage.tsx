@@ -129,7 +129,7 @@ const UsersPage: React.FC = () => {
                     toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'SuperAdmin Created', life: 3000 });
                 }
 
-                const userId = user.id || result.data?.id;
+                const userId = user.id || result?.id;
                 if (imageFile && userId) {
                     try {
                         await UserService.uploadImage(userId, imageFile);

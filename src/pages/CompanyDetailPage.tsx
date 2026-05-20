@@ -8,11 +8,17 @@ import { TabView, TabPanel } from 'primereact/tabview';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { InputText } from 'primereact/inputtext';
+import { InputSwitch } from 'primereact/inputswitch';
+import { InputNumber } from 'primereact/inputnumber';
+import { Dropdown } from 'primereact/dropdown';
+import { Calendar } from 'primereact/calendar';
 import { FilterMatchMode } from 'primereact/api';
 import { MapContainer, TileLayer, Marker, Popup, Circle, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { CompanyService } from '../services/company.service';
+import { ModuleService } from '../services/module.service';
+import { BillingService } from '../services/billing.service';
 
 // Fix for Leaflet default icon issues in React/Vite
 const DefaultIcon = L.icon({
@@ -38,7 +44,8 @@ const CompanyDetailPage: React.FC = () => {
         'branches': 1,
         'map': 2,
         'employee': 3,
-        'billing': 4
+        'modules': 4,
+        'billing': 5
     };
 
     const reverseTabMap: { [key: number]: string } = Object.fromEntries(
@@ -58,6 +65,16 @@ const CompanyDetailPage: React.FC = () => {
     });
     const [employeeGlobalFilter, setEmployeeGlobalFilter] = useState('');
 
+    // Modules
+    const [modules, setModules] = useState<any[]>([]);
+    const [modulesLoading, setModulesLoading] = useState(false);
+    const [savingModules, setSavingModules] = useState(false);
+
+    // Billing
+    const [billing, setBilling] = useState<any>(null);
+    const [billingLoading, setBillingLoading] = useState(false);
+    const [savingBilling, setSavingBilling] = useState(false);
+
     useEffect(() => {
         const tab = searchParams.get('tab');
         if (tab && tabMap[tab] !== undefined) {
@@ -76,11 +93,77 @@ const CompanyDetailPage: React.FC = () => {
             const data = await CompanyService.getById(id);
             setCompany(data.company);
             setAdmin(data.admin);
+            loadModules();
+            loadBilling();
         } catch (error) {
             console.error('Failed to load company details', error);
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to load company details' });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadModules = async () => {
+        if (!id) return;
+        setModulesLoading(true);
+        try {
+            const data = await ModuleService.getByCompany(id);
+            setModules(data || []);
+        } catch (error) {
+            console.error('Failed to load modules', error);
+        } finally {
+            setModulesLoading(false);
+        }
+    };
+
+    const loadBilling = async () => {
+        if (!id) return;
+        setBillingLoading(true);
+        try {
+            const data = await BillingService.getByCompany(id);
+            setBilling(data);
+        } catch (error) {
+            console.error('Failed to load billing', error);
+        } finally {
+            setBillingLoading(false);
+        }
+    };
+
+    const toggleModule = (key: string) => {
+        setModules((prev) =>
+            prev.map((m) => (m.key === key ? { ...m, enabled: !m.enabled } : m))
+        );
+    };
+
+    const saveModules = async () => {
+        if (!id) return;
+        setSavingModules(true);
+        try {
+            await ModuleService.update(id, modules.map((m) => ({ key: m.key, enabled: m.enabled })));
+            toast.current?.show({ severity: 'success', summary: 'Success', detail: 'Module settings updated' });
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to update modules' });
+        } finally {
+            setSavingModules(false);
+        }
+    };
+
+    const saveBilling = async () => {
+        if (!id || !billing) return;
+        setSavingBilling(true);
+        try {
+            await BillingService.update(id, {
+                plan: billing.plan,
+                trial_ends_at: billing.trial_ends_at,
+                subscription_ends_at: billing.subscription_ends_at,
+                billing_email: billing.billing_email,
+                monthly_fee: billing.monthly_fee,
+            });
+            toast.current?.show({ severity: 'success', summary: 'Success', detail: 'Billing updated' });
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to update billing' });
+        } finally {
+            setSavingBilling(false);
         }
     };
 
@@ -510,20 +593,185 @@ const CompanyDetailPage: React.FC = () => {
                         </div>
                     </TabPanel>
                     
+                    <TabPanel header="Modules" leftIcon="pi pi-th-large mr-2">
+                        <div className="p-4">
+                            <div className="flex justify-content-between align-items-center mb-5">
+                                <div className="flex align-items-center gap-3">
+                                    <div className="w-40px h-40px bg-purple-50 border-round-lg flex align-items-center justify-content-center shadow-1">
+                                        <i className="pi pi-th-large text-purple-600 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h3 className="m-0 text-xl font-bold text-900">Feature Modules</h3>
+                                        <p className="text-500 text-sm m-0">Enable or disable system features for this company tenant.</p>
+                                    </div>
+                                </div>
+                                <Button
+                                    label="Save Changes"
+                                    icon="pi pi-save"
+                                    onClick={saveModules}
+                                    loading={savingModules}
+                                    size="small"
+                                    className="border-round-lg font-bold border-none px-3 shadow-1"
+                                    style={{ backgroundColor: '#1E293B', color: '#ffffff', height: '34px' }}
+                                />
+                            </div>
+
+                            {modulesLoading ? (
+                                <div className="flex justify-content-center py-6"><ProgressSpinner style={{ width: '40px', height: '40px' }} /></div>
+                            ) : (
+                                <div className="grid">
+                                    {modules.map((mod) => (
+                                        <div key={mod.key} className="col-12 md:col-6 lg:col-4">
+                                            <div className={`p-4 border-round-2xl border-1 transition-all cursor-pointer ${mod.enabled ? 'bg-white shadow-1 border-100 hover:shadow-3' : 'bg-gray-50 border-200 hover:border-300'}`}>
+                                                <div className="flex align-items-start justify-content-between mb-3">
+                                                    <div className="flex align-items-center gap-3">
+                                                        <div className={`w-3rem h-3rem border-round-xl flex align-items-center justify-content-center ${mod.enabled ? 'bg-gray-900 shadow-1' : 'bg-gray-200'}`}>
+                                                            <i className={`pi ${mod.icon || 'pi-cog'} text-sm ${mod.enabled ? 'text-white' : 'text-400'}`}></i>
+                                                        </div>
+                                                        <div>
+                                                            <span className={`font-bold text-base block ${mod.enabled ? 'text-900' : 'text-500'}`}>{mod.label}</span>
+                                                            <span className="text-xs font-medium" style={{ color: mod.enabled ? '#10B981' : '#94A3B8' }}>
+                                                                {mod.enabled ? 'Active' : 'Disabled'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <InputSwitch checked={mod.enabled} onChange={() => toggleModule(mod.key)} />
+                                                </div>
+                                                <p className={`text-sm m-0 line-height-3 ${mod.enabled ? 'text-500' : 'text-400'}`}>{mod.description}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </TabPanel>
+
                     <TabPanel header="Subscription & Billing" leftIcon="pi pi-credit-card mr-2">
-                        <div className="p-8 text-center bg-white m-0 border-round-3xl relative overflow-hidden">
-                            {/* Background pattern or subtle glow */}
-                            <div className="absolute top-0 left-0 w-full h-1px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
-                            
-                            <div className="w-6rem h-6rem bg-gray-50 border-round-3xl flex align-items-center justify-content-center mx-auto mb-5 border-1 border-100 shadow-sm">
-                                <i className="pi pi-lock text-4xl text-900 opacity-20"></i>
+                        <div className="p-4">
+                            <div className="flex justify-content-between align-items-center mb-5">
+                                <div className="flex align-items-center gap-3">
+                                    <div className="w-40px h-40px bg-green-50 border-round-lg flex align-items-center justify-content-center shadow-1">
+                                        <i className="pi pi-credit-card text-green-600 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h3 className="m-0 text-xl font-bold text-900">Subscription & Billing</h3>
+                                        <p className="text-500 text-sm m-0">Manage plan, trial, and billing details for this tenant.</p>
+                                    </div>
+                                </div>
+                                <Button
+                                    label="Save Billing"
+                                    icon="pi pi-save"
+                                    onClick={saveBilling}
+                                    loading={savingBilling}
+                                    size="small"
+                                    className="border-round-lg font-bold border-none px-3 shadow-1"
+                                    style={{ backgroundColor: '#1E293B', color: '#ffffff', height: '34px' }}
+                                />
                             </div>
-                            <h3 className="text-900 font-bold mb-3 text-3xl tracking-tight">Enterprise Billing</h3>
-                            <p className="text-600 m-0 max-w-28rem mx-auto line-height-4 text-lg font-medium opacity-80">Advanced subscription lifecycle management, usage analytics, and automated invoicing are currently in development for our V2 rollout.</p>
-                            <div className="flex justify-content-center gap-3 mt-6">
-                                <Button label="View Early Roadmap" icon="pi pi-map" className="border-round-xl font-bold text-700 border-300 px-4" outlined />
-                                <Button label="Get Early Access" icon="pi pi-star-fill" className="border-round-xl font-bold border-none px-4 shadow-4" style={{ backgroundColor: '#0F172A', color: '#ffffff' }} />
-                            </div>
+
+                            {billingLoading ? (
+                                <div className="flex justify-content-center py-6"><ProgressSpinner style={{ width: '40px', height: '40px' }} /></div>
+                            ) : billing ? (
+                                <div className="grid">
+                                    <div className="col-12 lg:col-8">
+                                        <div className="bg-white p-5 border-round-2xl border-1 border-100 shadow-sm">
+                                            <h4 className="text-900 font-bold text-lg mb-4 flex align-items-center gap-2">
+                                                <i className="pi pi-tags text-indigo-500"></i>
+                                                Plan Details
+                                            </h4>
+                                            <div className="grid">
+                                                <div className="col-12 md:col-6 mb-3">
+                                                    <label className="block mb-2 font-semibold text-700 text-sm">Subscription Plan</label>
+                                                    <Dropdown
+                                                        value={billing.plan}
+                                                        onChange={(e) => setBilling({ ...billing, plan: e.value })}
+                                                        options={[
+                                                            { label: 'Free', value: 'free' },
+                                                            { label: 'Basic', value: 'basic' },
+                                                            { label: 'Professional', value: 'pro' },
+                                                            { label: 'Enterprise', value: 'enterprise' },
+                                                        ]}
+                                                        optionLabel="label"
+                                                        className="w-full border-round-lg"
+                                                    />
+                                                </div>
+                                                <div className="col-12 md:col-6 mb-3">
+                                                    <label className="block mb-2 font-semibold text-700 text-sm">Monthly Fee ($)</label>
+                                                    <InputNumber
+                                                        value={billing.monthly_fee}
+                                                        onChange={(e) => setBilling({ ...billing, monthly_fee: e.value || 0 })}
+                                                        mode="currency"
+                                                        currency="USD"
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div className="col-12 md:col-6 mb-3">
+                                                    <label className="block mb-2 font-semibold text-700 text-sm">Trial Ends</label>
+                                                    <Calendar
+                                                        value={billing.trial_ends_at ? new Date(billing.trial_ends_at) : null}
+                                                        onChange={(e) => setBilling({ ...billing, trial_ends_at: e.value })}
+                                                        showIcon
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div className="col-12 md:col-6 mb-3">
+                                                    <label className="block mb-2 font-semibold text-700 text-sm">Subscription Ends</label>
+                                                    <Calendar
+                                                        value={billing.subscription_ends_at ? new Date(billing.subscription_ends_at) : null}
+                                                        onChange={(e) => setBilling({ ...billing, subscription_ends_at: e.value })}
+                                                        showIcon
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div className="col-12 mb-3">
+                                                    <label className="block mb-2 font-semibold text-700 text-sm">Billing Email</label>
+                                                    <InputText
+                                                        value={billing.billing_email || ''}
+                                                        onChange={(e) => setBilling({ ...billing, billing_email: e.target.value })}
+                                                        className="w-full"
+                                                        placeholder="billing@company.com"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="col-12 lg:col-4">
+                                        <div className="bg-white p-5 border-round-2xl border-1 border-100 shadow-sm">
+                                            <h4 className="text-900 font-bold text-lg mb-4 flex align-items-center gap-2">
+                                                <i className="pi pi-info-circle text-blue-500"></i>
+                                                Summary
+                                            </h4>
+                                            <div className="flex flex-column gap-4">
+                                                <div className="flex justify-content-between align-items-center pb-3" style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                    <span className="text-500 font-medium">Current Plan</span>
+                                                    <span className="text-900 font-bold uppercase">{billing.plan || 'Free'}</span>
+                                                </div>
+                                                <div className="flex justify-content-between align-items-center pb-3" style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                    <span className="text-500 font-medium">Monthly Cost</span>
+                                                    <span className="text-900 font-bold">${billing.monthly_fee || 0}</span>
+                                                </div>
+                                                <div className="flex justify-content-between align-items-center pb-3" style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                    <span className="text-500 font-medium">Status</span>
+                                                    <span className={`px-2 py-1 border-round text-xs font-bold ${company?.status === 'Active' ? 'bg-green-50 text-green-700 border-1 border-green-200' : 'bg-red-50 text-red-700 border-1 border-red-200'}`}>
+                                                        {company?.status?.toUpperCase() || 'ACTIVE'}
+                                                    </span>
+                                                </div>
+                                                {billing.trial_ends_at && (
+                                                    <div className="flex justify-content-between align-items-center">
+                                                        <span className="text-500 font-medium">Trial Ends</span>
+                                                        <span className="text-900 font-bold text-sm">{new Date(billing.trial_ends_at).toLocaleDateString()}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-6 text-center bg-white border-round-2xl border-1 border-100">
+                                    <i className="pi pi-spinner text-4xl text-400 mb-3"></i>
+                                    <p className="text-600">Unable to load billing information.</p>
+                                </div>
+                            )}
                         </div>
                     </TabPanel>
                 </TabView>

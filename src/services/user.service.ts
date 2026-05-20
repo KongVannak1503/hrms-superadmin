@@ -3,19 +3,19 @@ import axiosInstance from '../config/axios';
 export const UserService = {
     getAll: async () => {
         const response = await axiosInstance.get('/users');
-        return response.data;
+        return response.data.data ?? response.data;
     },
     create: async (data: any) => {
         const response = await axiosInstance.post('/users', data);
-        return response.data;
+        return response.data.data ?? response.data;
     },
     update: async (id: number | string, data: any) => {
         const response = await axiosInstance.put(`/users/${id}`, data);
-        return response.data;
+        return response.data.data ?? response.data;
     },
     delete: async (id: number | string) => {
         const response = await axiosInstance.delete(`/users/${id}`);
-        return response.data;
+        return response.data.data ?? response.data;
     },
     uploadImage: async (id: number | string, file: File) => {
         const formData = new FormData();
@@ -25,6 +25,6 @@ export const UserService = {
                 'Content-Type': 'multipart/form-data',
             },
         });
-        return response.data;
+        return response.data.data ?? response.data;
     }
 };

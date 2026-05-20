@@ -22,7 +22,8 @@ const Sidebar = () => {
         return null;
     };
 
-    const userRole = user?.role || 'super_admin';
+    const rawRole = user?.role;
+    const userRole = typeof rawRole === 'string' ? rawRole : rawRole?.name ?? 'super_admin';
 
     // Sidebar is expanded if pinned OR hovered
     const isExpanded = isPinned || isHovered;
@@ -48,7 +49,9 @@ const Sidebar = () => {
             roles: ['super_admin'],
             children: [
                 { label: 'Global Config', icon: 'pi pi-sliders-h', path: '/settings/global' },
-                { label: 'Super Admins', icon: 'pi pi-users', path: '/settings/users' },
+                { label: 'All Users', icon: 'pi pi-users', path: '/settings/users/all' },
+                { label: 'Super Admins', icon: 'pi pi-shield', path: '/settings/users' },
+                { label: 'Audit Trail', icon: 'pi pi-history', path: '/settings/audit' },
             ]
         }
     ];
