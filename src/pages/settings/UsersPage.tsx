@@ -6,6 +6,8 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
 import { Avatar } from 'primereact/avatar';
+import { Checkbox } from 'primereact/checkbox';
+import { SelectButton } from 'primereact/selectbutton';
 import { Toast } from 'primereact/toast';
 import { UserService } from '../../services/user.service';
 import ImageCropper from '../../components/common/ImageCropper';
@@ -27,9 +29,14 @@ const UsersPage: React.FC = () => {
     const [showCropDialog, setShowCropDialog] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Permissions
+    const [permissionList, setPermissionList] = useState<any[]>([]);
+    const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+    const [fullAccess, setFullAccess] = useState<boolean>(true);
+
     const toast = useRef<Toast>(null);
 
-    const STORAGE_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace('/api', '') + '/storage/';
+    const STORAGE_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '') + '/storage/';
 
     useEffect(() => {
         loadUsers();
@@ -87,6 +94,9 @@ const UsersPage: React.FC = () => {
         setPreviewImage(null);
         setImageFile(null);
         setSubmitted(false);
+        setFullAccess(true);
+        setSelectedPermissions([]);
+        loadPermissions();
         setUserDialog(true);
     };
 
@@ -95,12 +105,24 @@ const UsersPage: React.FC = () => {
         setPreviewImage(usr.profile_image ? `${STORAGE_BASE_URL}${usr.profile_image}` : null);
         setImageFile(null);
         setSubmitted(false);
+        const perms = usr.permissions ?? [];
+        const isFull = perms.length === 0 || perms.includes('full_access');
+        setFullAccess(isFull);
+        setSelectedPermissions(isFull ? [] : perms);
+        loadPermissions();
         setUserDialog(true);
     };
 
     const hideDialog = () => {
         setUserDialog(false);
         setSubmitted(false);
+    };
+
+    const loadPermissions = async () => {
+        try {
+            const list = await UserService.getPermissionsList();
+            setPermissionList(Array.isArray(list) ? list : []);
+        } catch (_) { }
     };
 
     const confirmDeleteUser = (usr: any) => {
@@ -119,13 +141,14 @@ const UsersPage: React.FC = () => {
             setIsSubmitting(true);
             try {
                 let result;
+                const permissions = fullAccess ? [] : selectedPermissions;
                 if (user.id) {
-                    const payload: any = { name: user.name, email: user.email };
+                    const payload: any = { name: user.name, email: user.email, permissions };
                     if (user.password) payload.password = user.password;
                     result = await UserService.update(user.id, payload);
                     toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'SuperAdmin Updated', life: 3000 });
                 } else {
-                    result = await UserService.create(user);
+                    result = await UserService.create({ ...user, permissions });
                     toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'SuperAdmin Created', life: 3000 });
                 }
 
@@ -234,7 +257,7 @@ const UsersPage: React.FC = () => {
                 />
             )}
 
-            <Dialog visible={userDialog} style={{ width: '500px' }} header={user.id ? "Edit SuperAdmin" : "Register New SuperAdmin"} modal className="p-fluid" footer={userDialogFooter} onHide={hideDialog}>
+            <Dialog visible={userDialog} style={{ width: '600px' }} header={user.id ? "Edit SuperAdmin" : "Register New SuperAdmin"} modal className="p-fluid" footer={userDialogFooter} onHide={hideDialog}>
                 <div className="flex flex-column gap-4">
                     {/* Avatar Upload Section */}
                     <div className="flex flex-column align-items-center gap-3 py-2">
@@ -300,6 +323,55 @@ const UsersPage: React.FC = () => {
                             placeholder={user.id ? "Leave empty to keep existing" : "Enter secure password"}
                         />
                         {submitted && !user.id && !user.password && <small className="p-error">Password is required for new users.</small>}
+                    </div>
+
+                    {/* Permissions Section */}
+                    <div className="field">
+                        <label className="font-bold text-700 block mb-2">Access Permissions</label>
+                        <div className="flex align-items-center gap-3 mb-3 p-3 border-round-xl bg-blue-50 border-1 border-blue-100">
+                            <span className="text-sm font-medium text-700">Full Access (all permissions)</span>
+                            <SelectButton
+                                value={fullAccess ? 1 : 0}
+                                onChange={(e) => setFullAccess(e.value === 1)}
+                                options={[{ label: 'Yes', value: 1 }, { label: 'Custom', value: 0 }]}
+                                className="p-buttonset-sm ml-auto"
+                            />
+                        </div>
+                        {!fullAccess && permissionList.length > 0 && (
+                            <div className="border-1 border-100 border-round-xl p-3 max-h-20rem overflow-y-auto">
+                                {Object.entries(
+                                    permissionList.reduce((acc: any, p: any) => {
+                                        (acc[p.group] = acc[p.group] || []).push(p);
+                                        return acc;
+                                    }, {})
+                                ).map(([group, perms]: any) => (
+                                    <div key={group} className="mb-3">
+                                        <div className="text-xs font-bold text-500 uppercase tracking-widest mb-2">{group}</div>
+                                        <div className="grid">
+                                            {perms.map((p: any) => (
+                                                <div key={p.key} className="col-6 flex align-items-center gap-2">
+                                                    <Checkbox
+                                                        inputId={`perm-${p.key}`}
+                                                        checked={selectedPermissions.includes(p.key)}
+                                                        onChange={(e) => {
+                                                            if (e.checked) {
+                                                                setSelectedPermissions([...selectedPermissions, p.key]);
+                                                            } else {
+                                                                setSelectedPermissions(selectedPermissions.filter(k => k !== p.key));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label htmlFor={`perm-${p.key}`} className="text-sm text-700 cursor-pointer">{p.label}</label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {!fullAccess && permissionList.length === 0 && (
+                            <div className="text-500 text-sm p-3">Loading permissions...</div>
+                        )}
                     </div>
                 </div>
             </Dialog>

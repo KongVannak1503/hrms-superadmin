@@ -14,6 +14,7 @@ import GlobalConfigPage from './pages/settings/GlobalConfigPage';
 import UsersPage from './pages/settings/UsersPage';
 import AllUsersPage from './pages/settings/AllUsersPage';
 import AuditLogPage from './pages/settings/AuditLogPage';
+import ReportsPage from './pages/ReportsPage';
 import './App.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -48,6 +49,7 @@ function App() {
               <Route path="/settings/users" element={<UsersPage />} />
               <Route path="/settings/users/all" element={<AllUsersPage />} />
               <Route path="/settings/audit" element={<AuditLogPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
               {/* Add more superadmin routes here as needed */}
             </Route>
           </Routes>

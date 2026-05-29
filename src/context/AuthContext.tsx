@@ -1,5 +1,4 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { AuthService } from '../services/auth.service';
 
 interface AuthContextType {
     user: any | null;
@@ -7,6 +6,10 @@ interface AuthContextType {
     loading: boolean;
     setUser: (user: any | null) => void;
     logout: () => void;
+    hasPermission: (permission: string) => boolean;
+    can: (resource: string, action: string) => boolean;
+    permissions: string[];
+    isFullAccess: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -15,6 +18,10 @@ const AuthContext = createContext<AuthContextType>({
     loading: true,
     setUser: () => {},
     logout: () => {},
+    hasPermission: () => false,
+    can: () => false,
+    permissions: [],
+    isFullAccess: false,
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -22,30 +29,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const initAuth = async () => {
-            const token = localStorage.getItem('superadmin_token');
-            if (!token) {
-                setLoading(false);
-                return;
-            }
-
-            try {
-                const userData = await AuthService.getCurrentUser();
-                setUser(userData);
-            } catch (error) {
-                console.error('Failed to fetch superadmin', error);
-                localStorage.removeItem('superadmin_token');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        initAuth();
+        const token = localStorage.getItem('superadmin_token');
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+        import('../services/auth.service').then(({ AuthService }) => {
+            AuthService.getCurrentUser()
+                .then((userData) => setUser(userData))
+                .catch(() => localStorage.removeItem('superadmin_token'))
+                .finally(() => setLoading(false));
+        });
     }, []);
 
+    const getPermissions = (): string[] => user?.permissions ?? [];
+
+    const isFullAccess = (): boolean => {
+        const perms = getPermissions();
+        return perms.length === 0 || perms.includes('full_access');
+    };
+
+    const hasPermission = (permission: string): boolean => {
+        if (isFullAccess()) return true;
+        return getPermissions().includes(permission);
+    };
+
+    const can = (resource: string, action: string): boolean =>
+        hasPermission(`${resource}.${action}`);
+
     const logout = () => {
-        AuthService.logout().finally(() => {
-            setUser(null);
+        import('../services/auth.service').then(({ AuthService }) => {
+            AuthService.logout().finally(() => setUser(null));
         });
     };
 
@@ -55,7 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isAuthenticated: !!user,
             loading,
             setUser,
-            logout
+            logout,
+            hasPermission,
+            can,
+            permissions: getPermissions(),
+            isFullAccess: isFullAccess(),
         }}>
             {children}
         </AuthContext.Provider>

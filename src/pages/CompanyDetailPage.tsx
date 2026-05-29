@@ -12,6 +12,7 @@ import { InputSwitch } from 'primereact/inputswitch';
 import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
+import { Tag } from 'primereact/tag';
 import { FilterMatchMode } from 'primereact/api';
 import { MapContainer, TileLayer, Marker, Popup, Circle, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
@@ -19,6 +20,10 @@ import 'leaflet/dist/leaflet.css';
 import { CompanyService } from '../services/company.service';
 import { ModuleService } from '../services/module.service';
 import { BillingService } from '../services/billing.service';
+import { EmployeeService } from '../services/employee.service';
+import { LeavesService } from '../services/leaves.service';
+import { ShiftsService } from '../services/shifts.service';
+import { RosterService } from '../services/roster.service';
 
 // Fix for Leaflet default icon issues in React/Vite
 const DefaultIcon = L.icon({
@@ -45,7 +50,11 @@ const CompanyDetailPage: React.FC = () => {
         'map': 2,
         'employee': 3,
         'modules': 4,
-        'billing': 5
+        'billing': 5,
+        'attendance': 6,
+        'leaves': 7,
+        'shifts': 8,
+        'rosters': 9
     };
 
     const reverseTabMap: { [key: number]: string } = Object.fromEntries(
@@ -75,6 +84,24 @@ const CompanyDetailPage: React.FC = () => {
     const [billingLoading, setBillingLoading] = useState(false);
     const [savingBilling, setSavingBilling] = useState(false);
 
+    // Attendance
+    const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+    const [attendanceLoading, setAttendanceLoading] = useState(false);
+    const [attendanceDateFrom, setAttendanceDateFrom] = useState('');
+    const [attendanceDateTo, setAttendanceDateTo] = useState('');
+
+    // Leaves
+    const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+    const [leaveLoading, setLeaveLoading] = useState(false);
+
+    // Shifts
+    const [shifts, setShifts] = useState<any[]>([]);
+    const [shiftsLoading, setShiftsLoading] = useState(false);
+
+    // Rosters
+    const [rosters, setRosters] = useState<any[]>([]);
+    const [rostersLoading, setRostersLoading] = useState(false);
+
     useEffect(() => {
         const tab = searchParams.get('tab');
         if (tab && tabMap[tab] !== undefined) {
@@ -85,6 +112,14 @@ const CompanyDetailPage: React.FC = () => {
     useEffect(() => {
         loadCompanyDetails();
     }, [id]);
+
+    useEffect(() => {
+        if (!id) return;
+        if (activeIndex === 6) loadAttendance();
+        if (activeIndex === 7) loadLeaves();
+        if (activeIndex === 8) loadShifts();
+        if (activeIndex === 9) loadRosters();
+    }, [activeIndex, id]);
 
     const loadCompanyDetails = async () => {
         setLoading(true);
@@ -164,6 +199,81 @@ const CompanyDetailPage: React.FC = () => {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to update billing' });
         } finally {
             setSavingBilling(false);
+        }
+    };
+
+    const loadAttendance = async () => {
+        if (!id) return;
+        setAttendanceLoading(true);
+        try {
+            const params: any = {};
+            if (attendanceDateFrom) params.date_from = attendanceDateFrom;
+            if (attendanceDateTo) params.date_to = attendanceDateTo;
+            const result = await EmployeeService.attendance(id, params);
+            setAttendanceRecords(Array.isArray(result) ? result : result?.data ?? []);
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to load attendance' });
+        } finally {
+            setAttendanceLoading(false);
+        }
+    };
+
+    const loadLeaves = async () => {
+        if (!id) return;
+        setLeaveLoading(true);
+        try {
+            const result = await LeavesService.getAll({ company_id: id });
+            setLeaveRequests(Array.isArray(result) ? result : result?.data ?? []);
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to load leaves' });
+        } finally {
+            setLeaveLoading(false);
+        }
+    };
+
+    const approveLeave = async (leaveId: number) => {
+        try {
+            await LeavesService.approve(leaveId);
+            toast.current?.show({ severity: 'success', summary: 'Approved', detail: 'Leave request approved' });
+            loadLeaves();
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to approve leave' });
+        }
+    };
+
+    const rejectLeave = async (leaveId: number) => {
+        try {
+            await LeavesService.reject(leaveId);
+            toast.current?.show({ severity: 'success', summary: 'Rejected', detail: 'Leave request rejected' });
+            loadLeaves();
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to reject leave' });
+        }
+    };
+
+    const loadShifts = async () => {
+        if (!id) return;
+        setShiftsLoading(true);
+        try {
+            const result = await ShiftsService.getAll({ company_id: id });
+            setShifts(Array.isArray(result) ? result : result?.data ?? []);
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to load shifts' });
+        } finally {
+            setShiftsLoading(false);
+        }
+    };
+
+    const loadRosters = async () => {
+        if (!id) return;
+        setRostersLoading(true);
+        try {
+            const result = await RosterService.getAll({ company_id: id });
+            setRosters(Array.isArray(result) ? result : result?.data ?? []);
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to load rosters' });
+        } finally {
+            setRostersLoading(false);
         }
     };
 
@@ -625,8 +735,8 @@ const CompanyDetailPage: React.FC = () => {
                                             <div className={`p-4 border-round-2xl border-1 transition-all cursor-pointer ${mod.enabled ? 'bg-white shadow-1 border-100 hover:shadow-3' : 'bg-gray-50 border-200 hover:border-300'}`}>
                                                 <div className="flex align-items-start justify-content-between mb-3">
                                                     <div className="flex align-items-center gap-3">
-                                                        <div className={`w-3rem h-3rem border-round-xl flex align-items-center justify-content-center ${mod.enabled ? 'bg-gray-900 shadow-1' : 'bg-gray-200'}`}>
-                                                            <i className={`pi ${mod.icon || 'pi-cog'} text-sm ${mod.enabled ? 'text-white' : 'text-400'}`}></i>
+                                                        <div className={`w-3rem h-3rem border-round-xl flex align-items-center justify-content-center shadow-1`} style={{backgroundColor: mod.enabled ? '#111827' : '#e5e7eb'}}>
+                                                        <i className={`pi ${mod.icon || 'pi-cog'} text-lg`} style={{fontSize: '1.25rem', color: mod.enabled ? '#ffffff' : '#111827'}}></i>
                                                         </div>
                                                         <div>
                                                             <span className={`font-bold text-base block ${mod.enabled ? 'text-900' : 'text-500'}`}>{mod.label}</span>
@@ -770,6 +880,136 @@ const CompanyDetailPage: React.FC = () => {
                                 <div className="p-6 text-center bg-white border-round-2xl border-1 border-100">
                                     <i className="pi pi-spinner text-4xl text-400 mb-3"></i>
                                     <p className="text-600">Unable to load billing information.</p>
+                                </div>
+                            )}
+                        </div>
+                    </TabPanel>
+
+                    <TabPanel header="Attendance" leftIcon="pi pi-calendar-clock mr-2">
+                        <div className="p-4">
+                            <div className="flex justify-content-between align-items-center mb-5">
+                                <div className="flex align-items-center gap-3">
+                                    <div className="w-40px h-40px bg-cyan-50 border-round-lg flex align-items-center justify-content-center shadow-1">
+                                        <i className="pi pi-calendar-clock text-cyan-600 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h3 className="m-0 text-xl font-bold text-900">Attendance Records</h3>
+                                        <p className="text-500 text-sm m-0">Track employee check-ins and check-outs</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 align-items-center">
+                                    <InputText value={attendanceDateFrom} onChange={(e) => setAttendanceDateFrom(e.target.value)} placeholder="From date" className="p-inputtext-sm border-round-xl w-10rem" />
+                                    <InputText value={attendanceDateTo} onChange={(e) => setAttendanceDateTo(e.target.value)} placeholder="To date" className="p-inputtext-sm border-round-xl w-10rem" />
+                                    <Button icon="pi pi-search" rounded outlined severity="info" size="small" onClick={loadAttendance} tooltip="Filter" />
+                                </div>
+                            </div>
+                            {attendanceLoading ? (
+                                <div className="flex justify-content-center py-6"><ProgressSpinner style={{ width: '40px', height: '40px' }} /></div>
+                            ) : (
+                                <div className="border-round-2xl overflow-hidden bg-white shadow-1 border-1 border-100">
+                                    <DataTable value={attendanceRecords} emptyMessage="No attendance records found." className="p-datatable-sm custom-table" rowHover paginator rows={10} rowsPerPageOptions={[10, 25, 50]}>
+                                        <Column field="employee.employee_id" header="EMP ID" className="font-medium text-600" />
+                                        <Column field="employee.name_en" header="EMPLOYEE" className="font-bold text-900" />
+                                        <Column field="date" header="DATE" className="text-600" />
+                                        <Column field="clock_in" header="CLOCK IN" className="text-600" />
+                                        <Column field="clock_out" header="CLOCK OUT" className="text-600" />
+                                        <Column field="status" header="STATUS" className="text-600" body={(r) => <Tag value={r.status || 'N/A'} severity={r.status === 'present' ? 'success' : r.status === 'late' ? 'warning' : r.status === 'absent' ? 'danger' : 'info'} />} />
+                                    </DataTable>
+                                </div>
+                            )}
+                        </div>
+                    </TabPanel>
+
+                    <TabPanel header="Leaves" leftIcon="pi pi-send mr-2">
+                        <div className="p-4">
+                            <div className="flex justify-content-between align-items-center mb-5">
+                                <div className="flex align-items-center gap-3">
+                                    <div className="w-40px h-40px bg-orange-50 border-round-lg flex align-items-center justify-content-center shadow-1">
+                                        <i className="pi pi-send text-orange-600 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h3 className="m-0 text-xl font-bold text-900">Leave Requests</h3>
+                                        <p className="text-500 text-sm m-0">Review and manage employee leave requests</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {leaveLoading ? (
+                                <div className="flex justify-content-center py-6"><ProgressSpinner style={{ width: '40px', height: '40px' }} /></div>
+                            ) : (
+                                <div className="border-round-2xl overflow-hidden bg-white shadow-1 border-1 border-100">
+                                    <DataTable value={leaveRequests} emptyMessage="No leave requests found." className="p-datatable-sm custom-table" rowHover paginator rows={10} rowsPerPageOptions={[10, 25, 50]}>
+                                        <Column field="employee.employee_id" header="EMP ID" className="font-medium text-600" />
+                                        <Column field="employee.name_en" header="EMPLOYEE" className="font-bold text-900" />
+                                        <Column field="leaveType.name" header="LEAVE TYPE" className="text-600" />
+                                        <Column field="start_date" header="FROM" className="text-600" />
+                                        <Column field="end_date" header="TO" className="text-600" />
+                                        <Column field="status" header="STATUS" className="text-600" body={(r) => <Tag value={r.status} severity={r.status === 'approved' ? 'success' : r.status === 'pending' ? 'warning' : 'danger'} />} />
+                                        <Column header="ACTIONS" className="text-600" body={(r) => r.status === 'pending' ? (
+                                            <div className="flex gap-2">
+                                                <Button icon="pi pi-check" rounded outlined severity="success" size="small" tooltip="Approve" onClick={() => approveLeave(r.id)} />
+                                                <Button icon="pi pi-times" rounded outlined severity="danger" size="small" tooltip="Reject" onClick={() => rejectLeave(r.id)} />
+                                            </div>
+                                        ) : <span className="text-500 text-sm">{r.status === 'approved' ? 'Approved' : 'Rejected'}</span>} />
+                                    </DataTable>
+                                </div>
+                            )}
+                        </div>
+                    </TabPanel>
+
+                    <TabPanel header="Shifts" leftIcon="pi pi-clock mr-2">
+                        <div className="p-4">
+                            <div className="flex justify-content-between align-items-center mb-5">
+                                <div className="flex align-items-center gap-3">
+                                    <div className="w-40px h-40px bg-pink-50 border-round-lg flex align-items-center justify-content-center shadow-1">
+                                        <i className="pi pi-clock text-pink-600 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h3 className="m-0 text-xl font-bold text-900">Shift Definitions</h3>
+                                        <p className="text-500 text-sm m-0">Configured work shifts and schedules</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {shiftsLoading ? (
+                                <div className="flex justify-content-center py-6"><ProgressSpinner style={{ width: '40px', height: '40px' }} /></div>
+                            ) : (
+                                <div className="border-round-2xl overflow-hidden bg-white shadow-1 border-1 border-100">
+                                    <DataTable value={shifts} emptyMessage="No shifts found." className="p-datatable-sm custom-table" rowHover paginator rows={10} rowsPerPageOptions={[10, 25, 50]}>
+                                        <Column field="id" header="ID" style={{ width: '80px' }} className="font-medium text-600" />
+                                        <Column field="name" header="SHIFT NAME" className="font-bold text-900" />
+                                        <Column field="start_time" header="START" className="text-600" />
+                                        <Column field="end_time" header="END" className="text-600" />
+                                        <Column field="grace_minutes" header="GRACE (MIN)" className="text-600" />
+                                        <Column field="overtime_threshold" header="OT THRESHOLD" className="text-600" />
+                                    </DataTable>
+                                </div>
+                            )}
+                        </div>
+                    </TabPanel>
+
+                    <TabPanel header="Rosters" leftIcon="pi pi-calendar mr-2">
+                        <div className="p-4">
+                            <div className="flex justify-content-between align-items-center mb-5">
+                                <div className="flex align-items-center gap-3">
+                                    <div className="w-40px h-40px bg-violet-50 border-round-lg flex align-items-center justify-content-center shadow-1">
+                                        <i className="pi pi-calendar text-violet-600 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h3 className="m-0 text-xl font-bold text-900">Monthly Rosters</h3>
+                                        <p className="text-500 text-sm m-0">Employee shift assignments and schedules</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {rostersLoading ? (
+                                <div className="flex justify-content-center py-6"><ProgressSpinner style={{ width: '40px', height: '40px' }} /></div>
+                            ) : (
+                                <div className="border-round-2xl overflow-hidden bg-white shadow-1 border-1 border-100">
+                                    <DataTable value={rosters} emptyMessage="No rosters found." className="p-datatable-sm custom-table" rowHover paginator rows={10} rowsPerPageOptions={[10, 25, 50]}>
+                                        <Column field="id" header="ID" style={{ width: '80px' }} className="font-medium text-600" />
+                                        <Column field="employee.name_en" header="EMPLOYEE" className="font-bold text-900" />
+                                        <Column field="shift.name" header="SHIFT" className="text-600" />
+                                        <Column field="month" header="MONTH" className="text-600" />
+                                        <Column field="year" header="YEAR" className="text-600" />
+                                    </DataTable>
                                 </div>
                             )}
                         </div>

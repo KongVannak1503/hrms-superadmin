@@ -86,7 +86,7 @@ const AuditLogPage: React.FC = () => {
                     onChange={(e) => { setSelectedAction(e.value); setPage(1); }}
                     options={actions}
                     placeholder="All Actions"
-                    clearable
+                    showClear
                     className="w-full md:w-14rem border-round-lg"
                 />
                 <Calendar

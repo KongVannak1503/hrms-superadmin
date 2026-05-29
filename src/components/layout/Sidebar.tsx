@@ -5,13 +5,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useLayout } from '../../context/LayoutContext';
 import logo from '../../assets/logo.png';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-const STORAGE_BASE_URL = API_BASE_URL.replace('/api', '') + '/storage/';
+const STORAGE_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '') + '/storage/';
 
 const Sidebar = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
     const { isPinned, setIsPinned, isHovered, setIsHovered } = useLayout();
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
@@ -36,11 +35,16 @@ const Sidebar = () => {
     };
 
     const allMenuItems = [
-        { label: 'Dashboard', icon: 'pi pi-objects-column', path: '/', roles: ['super_admin'] },
-        { label: 'Companies', icon: 'pi pi-building', path: '/companies', roles: ['super_admin'] },
+        { label: 'Dashboard', icon: 'pi pi-objects-column', path: '/', roles: ['super_admin'], permission: 'dashboard.view' },
+        { label: 'Companies', icon: 'pi pi-building', path: '/companies', roles: ['super_admin'], permission: 'companies.view' },
+        { label: 'Reports', icon: 'pi pi-chart-bar', path: '/reports', roles: ['super_admin'], permission: 'reports.view' },
     ];
 
-    const menuItems = allMenuItems.filter(item => !item.roles || item.roles.includes(userRole));
+    const menuItems = allMenuItems.filter(item => {
+        if (!item.roles || !item.roles.includes(userRole)) return false;
+        if (item.permission) return hasPermission(item.permission);
+        return true;
+    });
 
     const allGroupedItems = [
         {
@@ -48,15 +52,24 @@ const Sidebar = () => {
             icon: 'pi pi-server',
             roles: ['super_admin'],
             children: [
-                { label: 'Global Config', icon: 'pi pi-sliders-h', path: '/settings/global' },
-                { label: 'All Users', icon: 'pi pi-users', path: '/settings/users/all' },
-                { label: 'Super Admins', icon: 'pi pi-shield', path: '/settings/users' },
-                { label: 'Audit Trail', icon: 'pi pi-history', path: '/settings/audit' },
+                { label: 'Global Config', icon: 'pi pi-sliders-h', path: '/settings/global', permission: 'config.view' },
+                { label: 'All Users', icon: 'pi pi-users', path: '/settings/users/all', permission: 'directory.view' },
+                { label: 'Super Admins', icon: 'pi pi-shield', path: '/settings/users', permission: 'users.view' },
+                { label: 'Audit Trail', icon: 'pi pi-history', path: '/settings/audit', permission: 'audit.view' },
             ]
         }
     ];
 
-    const groupedItems = allGroupedItems.filter(group => !group.roles || group.roles.includes(userRole));
+    const groupedItems = allGroupedItems
+        .filter(group => !group.roles || group.roles.includes(userRole))
+        .map(group => ({
+            ...group,
+            children: group.children.filter(child => {
+                if (child.permission) return hasPermission(child.permission);
+                return true;
+            })
+        }))
+        .filter(group => group.children.length > 0);
 
     // Automatically expand parent menus when a child item is active
     useEffect(() => {
