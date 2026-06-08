@@ -9,10 +9,11 @@ interface ImageCropperProps {
   open: boolean;
   onCancel: () => void;
   onConfirm: (croppedBlob: Blob) => void;
+  onSkip?: () => void;
   aspect?: number;
 }
 
-export default function ImageCropper({ imageSrc, open, onCancel, onConfirm, aspect = 1 }: ImageCropperProps) {
+export default function ImageCropper({ imageSrc, open, onCancel, onConfirm, onSkip, aspect = 1 }: ImageCropperProps) {
   const [crop, setCrop] = useState<PixelCrop>();
   const [loading, setLoading] = useState(false);
   const [cropSize, setCropSize] = useState<string>('');
@@ -97,6 +98,7 @@ export default function ImageCropper({ imageSrc, open, onCancel, onConfirm, aspe
         {cropSize || 'Drag to crop'}
       </div>
       <div className="flex justify-content-end gap-2 px-3 pb-3 pt-3">
+        {onSkip && <Button label="Use Original" severity="info" outlined onClick={onSkip} disabled={loading} />}
         <Button label="Cancel" severity="secondary" outlined onClick={handleCancel} disabled={loading} />
         <Button label="Save" icon="pi pi-check" onClick={handleConfirm} loading={loading} />
       </div>
