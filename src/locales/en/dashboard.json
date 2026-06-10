@@ -1,0 +1,18 @@
+{
+    "dashboard": {
+        "title": "Dashboard",
+        "subtitle": "System-wide overview and performance metrics",
+        "stats": {
+            "totalCompanies": "Total Companies",
+            "activeEmployees": "Active Employees",
+            "globalBranches": "Global Branches",
+            "systemUsers": "System Users"
+        },
+        "recentRegistrations": "Recent Company Registrations",
+        "viewAll": "View All",
+        "systemNotifications": "System Notifications",
+        "clearAll": "Clear All Notifications",
+        "generateReport": "Generate Report",
+        "newCompany": "New Company"
+    }
+}

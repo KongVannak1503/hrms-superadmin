@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { InputText } from 'primereact/inputtext';
@@ -6,38 +6,51 @@ import { Avatar } from 'primereact/avatar';
 import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
 import { UserService } from '../../services/user.service';
+import { useFilterState } from '../../hooks';
 
 const STORAGE_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '') + '/storage/';
 
 const AllUsersPage: React.FC = () => {
-    const [users, setUsers] = useState<any[]>([]);
+    const [allUsers, setAllUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
     const toast = useRef<Toast>(null);
+    const [filters, setFilters] = useFilterState(
+        { search: '', page: 1, limit: 20 },
+        { numberFields: ['page', 'limit'] }
+    );
 
-    useEffect(() => {
-        loadUsers();
-    }, [search]);
+    const filteredUsers = useMemo(() => {
+        if (!filters.search) return allUsers;
+        const q = filters.search.toLowerCase();
+        return allUsers.filter((u: any) =>
+            u.name?.toLowerCase().includes(q) ||
+            u.email?.toLowerCase().includes(q)
+        );
+    }, [allUsers, filters.search]);
+
+    const totalRecords = filteredUsers.length;
+
+    const paginatedUsers = useMemo(() => {
+        const start = (filters.page - 1) * filters.limit;
+        return filteredUsers.slice(start, start + filters.limit);
+    }, [filteredUsers, filters.page, filters.limit]);
 
     async function loadUsers() {
         setLoading(true);
         try {
             const data = await UserService.getAll();
             const list = Array.isArray(data) ? data : data?.data ?? [];
-            if (search) {
-                setUsers(list.filter((u: any) =>
-                    u.name?.toLowerCase().includes(search.toLowerCase()) ||
-                    u.email?.toLowerCase().includes(search.toLowerCase())
-                ));
-            } else {
-                setUsers(list);
-            }
+            setAllUsers(list);
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to load users' });
         } finally {
             setLoading(false);
         }
     }
+
+    useEffect(() => {
+        loadUsers();
+    }, []);
 
     const roleTemplate = () => (
         <Tag value="SUPERADMIN" severity="info" className="text-xs font-bold px-2 py-1" />
@@ -58,7 +71,6 @@ const AllUsersPage: React.FC = () => {
         </div>
     );
 
-
     return (
         <div className="p-4 mx-auto w-full" style={{ maxWidth: '1400px' }}>
             <Toast ref={toast} />
@@ -72,8 +84,8 @@ const AllUsersPage: React.FC = () => {
                 <span className="p-input-icon-left flex-1">
                     <i className="pi pi-search ml-2" />
                     <InputText
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        value={filters.search}
+                        onChange={(e) => setFilters({ search: e.target.value, page: 1 })}
                         placeholder="Search by name or email..."
                         className="w-full pl-5 border-round-lg"
                     />
@@ -82,8 +94,14 @@ const AllUsersPage: React.FC = () => {
 
             <div className="card shadow-1 border-1 border-round-2xl overflow-hidden bg-white" style={{ borderColor: '#e5e7eb' }}>
                 <DataTable
-                    value={users}
+                    value={paginatedUsers}
                     loading={loading}
+                    paginator
+                    totalRecords={totalRecords}
+                    rows={filters.limit}
+                    first={(filters.page - 1) * filters.limit}
+                    onPage={(e: any) => setFilters({ page: (e.page || 0) + 1, limit: e.rows })}
+                    rowsPerPageOptions={[10, 20, 50]}
                     emptyMessage="No superadmin users found."
                     className="p-datatable-sm"
                     rowHover

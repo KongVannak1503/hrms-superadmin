@@ -8,22 +8,23 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Toast } from 'primereact/toast';
 import { CompanyService } from '../services/company.service';
+import { useFilterState } from '../hooks';
 
 const CompanyListPage: React.FC = () => {
     const [companies, setCompanies] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [companyDialog, setCompanyDialog] = useState(false);
+    const [totalRecords, setTotalRecords] = useState(0);
     const [deleteCompanyDialog, setDeleteCompanyDialog] = useState(false);
     const [company, setCompany] = useState<any>({ name: '', domain: '', admin_email: '', admin_password: '' });
-    const [submitted, setSubmitted] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchInput, setSearchInput] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
     const toast = useRef<Toast>(null);
     const menu = useRef<Menu>(null);
     const navigate = useNavigate();
     const [selectedCompany, setSelectedCompany] = useState<any>(null);
+    const [filters, setFilters] = useFilterState({ search: '', page: 1, limit: 10 }, { numberFields: ['page', 'limit'] });
 
     const stats = {
-        total: companies.length,
+        total: totalRecords,
         active: companies.filter((c: any) => c.status === 'Active' || !c.status).length,
         pending: companies.filter((c: any) => c.status === 'Pending').length,
         flagged: companies.filter((c: any) => c.status === 'Flagged').length
@@ -52,19 +53,17 @@ const CompanyListPage: React.FC = () => {
     ];
 
     useEffect(() => {
-        const delayDebounceFn = setTimeout(() => {
-            loadCompanies(searchQuery);
-        }, 500);
+        const timer = setTimeout(() => setFilters({ search: searchInput }), 500);
+        return () => clearTimeout(timer);
+    }, [searchInput, setFilters]);
 
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery]);
-
-    const loadCompanies = async (search = '') => {
+    const loadCompanies = async () => {
         setLoading(true);
         try {
-            const params = search ? { search } : {};
-            const data = await CompanyService.getAll(params);
-            setCompanies(data || []);
+            const data = await CompanyService.getAll({ search: filters.search, page: filters.page, limit: filters.limit });
+            const items = Array.isArray(data) ? data : data?.data ?? [];
+            setCompanies(items);
+            setTotalRecords(data?.total ?? items.length);
         } catch (error) {
             console.error('Failed to load companies', error);
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to load companies' });
@@ -72,6 +71,10 @@ const CompanyListPage: React.FC = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        loadCompanies();
+    }, [filters.search, filters.page, filters.limit]);
 
     const openNew = () => {
         navigate('/companies/create');
@@ -86,33 +89,8 @@ const CompanyListPage: React.FC = () => {
         setDeleteCompanyDialog(true);
     };
 
-    const hideDialog = () => {
-        setCompanyDialog(false);
-        setSubmitted(false);
-    };
-
     const hideDeleteDialog = () => {
         setDeleteCompanyDialog(false);
-    };
-
-    const saveCompany = async () => {
-        setSubmitted(true);
-
-        if (company.name.trim() && company.domain.trim()) {
-            try {
-                if (company.id) {
-                    await CompanyService.update(company.id, company);
-                    toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'Company Updated', life: 3000 });
-                } else {
-                    await CompanyService.create(company);
-                    toast.current?.show({ severity: 'success', summary: 'Successful', detail: 'Company Created', life: 3000 });
-                }
-                setCompanyDialog(false);
-                loadCompanies();
-            } catch (error: any) {
-                toast.current?.show({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Failed to save company' });
-            }
-        }
     };
 
     const deleteCompany = async () => {
@@ -126,8 +104,12 @@ const CompanyListPage: React.FC = () => {
         }
     };
 
+    const onPage = (e: any) => {
+        setFilters({ page: (e.page ?? 0) + 1, limit: e.rows });
+    };
+
     const onGlobalFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchQuery(e.target.value);
+        setSearchInput(e.target.value);
     };
 
     const header = (
@@ -138,20 +120,13 @@ const CompanyListPage: React.FC = () => {
                 </div>
                 <span className="p-input-icon-left ml-2">
                     <i className="pi pi-search ml-2" />
-                    <InputText value={searchQuery} onChange={onGlobalFilterChange} placeholder="Search records..." className="p-inputtext-sm border-round-lg w-15rem pl-5" style={{ height: '34px', border: '1px solid #e2e8f0' }} />
+                    <InputText value={searchInput} onChange={onGlobalFilterChange} placeholder="Search records..." className="p-inputtext-sm border-round-lg w-15rem pl-5" style={{ height: '34px', border: '1px solid #e2e8f0' }} />
                 </span>
             </div>
             <div className="text-500 text-sm font-medium">
-                Showing {Math.min(companies.length, 1)} - {companies.length} of {companies.length} companies
+                Showing {companies.length > 0 ? (filters.page - 1) * filters.limit + 1 : 0} - {Math.min(filters.page * filters.limit, totalRecords)} of {totalRecords} companies
             </div>
         </div>
-    );
-
-    const companyDialogFooter = (
-        <>
-            <Button label="Cancel" icon="pi pi-times" text onClick={hideDialog} />
-            <Button label="Save" icon="pi pi-check" onClick={saveCompany} />
-        </>
     );
 
     const deleteCompanyDialogFooter = (
@@ -260,7 +235,8 @@ const CompanyListPage: React.FC = () => {
 
             <div className="card shadow-1 p-0 border-round-2xl overflow-hidden bg-white mb-5" style={{ border: '1px solid #e2e8f0' }}>
                 <DataTable value={companies} header={header} loading={loading} 
-                    paginator rows={10} rowsPerPageOptions={[5, 10, 25]}
+                    paginator lazy totalRecords={totalRecords} rows={filters.limit} first={(filters.page - 1) * filters.limit} rowsPerPageOptions={[5, 10, 25]}
+                    onPage={onPage}
                     className="p-datatable-sm" responsiveLayout="scroll"
                     emptyMessage="No companies found.">
                     <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
@@ -317,18 +293,6 @@ const CompanyListPage: React.FC = () => {
                 </div>
                 <span className="text-500 text-xs">Last sync: 2 minutes ago</span>
             </div>
-
-            <Dialog visible={companyDialog} style={{ width: '450px' }} header="Edit Company Settings" modal className="p-fluid" footer={companyDialogFooter} onHide={hideDialog}>
-                <div className="field mb-3">
-                    <label htmlFor="name" className="font-bold">Company Name</label>
-                    <InputText id="name" value={company.name} onChange={(e) => setCompany({ ...company, name: e.target.value })} required autoFocus className={submitted && !company.name ? 'p-invalid' : ''} />
-                    {submitted && !company.name && <small className="p-error">Name is required.</small>}
-                </div>
-                <div className="field mb-3">
-                    <label htmlFor="website" className="font-bold">Website</label>
-                    <InputText id="website" value={company.website} onChange={(e) => setCompany({ ...company, website: e.target.value })} className={submitted && !company.website ? 'p-invalid' : ''} />
-                </div>
-            </Dialog>
 
             <Dialog visible={deleteCompanyDialog} style={{ width: '450px' }} header="Confirm" modal footer={deleteCompanyDialogFooter} onHide={hideDeleteDialog}>
                 <div className="flex align-items-center justify-content-center">

@@ -1,0 +1,39 @@
+{
+    "users": {
+        "title": "SuperAdmin Users",
+        "create": "New SuperAdmin",
+        "edit": "Edit SuperAdmin",
+        "name": "Full Name",
+        "email": "Email Address",
+        "password": "Password",
+        "newPassword": "New Password (Optional)",
+        "role": "Role",
+        "permissions": "Access Permissions",
+        "fullAccess": "Full Access (all permissions)",
+        "customAccess": "Custom Permissions",
+        "profileImage": "Profile Image",
+        "uploadImage": "Upload Image",
+        "searchPlaceholder": "Search users...",
+        "noUsers": "No users found",
+        "confirmDelete": "Are you sure you want to delete this SuperAdmin account?",
+        "deleteWarning": "Warning: This action is permanent.",
+        "deleteSuccess": "User deleted successfully",
+        "deleteError": "Failed to delete user",
+        "createSuccess": "SuperAdmin created successfully",
+        "createError": "Failed to create SuperAdmin",
+        "updateSuccess": "SuperAdmin updated successfully",
+        "updateError": "Failed to update SuperAdmin",
+        "imageUploadSuccess": "Profile image uploaded successfully",
+        "imageUploadError": "Failed to upload profile image",
+        "fileTooLarge": "File size exceeds 10MB limit",
+        "permissionGroups": {
+            "companyManagement": "Company Management",
+            "userManagement": "User Management",
+            "employeeManagement": "Employee Management",
+            "attendanceLeaves": "Attendance & Leaves",
+            "payrollBilling": "Payroll & Billing",
+            "reportsAnalytics": "Reports & Analytics",
+            "systemSettings": "System Settings"
+        }
+    }
+}

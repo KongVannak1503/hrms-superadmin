@@ -1,8 +1,8 @@
 import axiosInstance from '../config/axios';
 
 export const UserService = {
-    getAll: async () => {
-        const response = await axiosInstance.get('/super-admin/users');
+    getAll: async (params?: any) => {
+        const response = await axiosInstance.get('/super-admin/users', { params });
         return response.data.data ?? response.data;
     },
     create: async (data: any) => {
